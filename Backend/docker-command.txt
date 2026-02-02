@@ -1,0 +1,47 @@
+// แสดง container (default shows just running)
+docker ps --all
+
+// show running container
+docker ps
+
+// stop
+docker stop (container_ID)
+
+// pull
+docker pull wordpress:cli-php8.5
+
+// create
+docker create <container_ID>
+
+// start
+docker start <container_ID>
+
+// remove
+docker rm <container_ID>
+
+//remove all container ต้องระวัง
+docker system prune
+
+//run  
+docker run <ชื่อ web>
+
+//เข้าไปใน container
+docker exec -it <imagename_containerID> sh
+
+//cd etc/
+//cd nginx
+
+// cat file inside container
+cat filename.txt
+
+//-p คือระบุพอร์ต
+
+
+//docker run -p 80:80 nginx
+พอร์ตด้านหน้าคือ user เข้าบราวเซอร์
+
+//forground mode
+docker run -p 9000:80 nginx
+
+//detached mode
+docker run -d -p 9100:80 nginx
