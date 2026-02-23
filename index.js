@@ -1,68 +1,128 @@
 const express = require('express');
-const bodyParser = require('body-parser')
+const bodyParser = require('body-parser');
+const mysql = require('mysql2/promise');
+
 const app = express();
 const port = 8000;
 
 app.use(bodyParser.json());
 
-let users = []
-let counter = 1;
-//path =/user
-app.get('/users', (req, res) => {
-    res.json(users);
+let conn = null;
+
+const initMySQL = async () => {
+    conn = await mysql.createConnection({
+        host: 'localhost',
+        user: 'root',
+        password: 'root',
+        database: 'webdb',
+        port: 8820
     });
-//path = POST /user
-app.post('/user', (req, res)=>{
-    let user = req.body;
-    user.id = counter
-    counter += 1
-    users.push(user);
-    res.json({
-        message: 'User added successfully',
-        user: user });
-    })
-//path = PUT /user/:id
-app.patch('/user/:id', (req, res)=> {
-    let id = req.params.id
-    let updatedUser = req.body;
-    //หา users จาก id
-    let selectedIndex = users.findIndex(user => user.id == id)
-    //update users นั้น
-    if (updatedUser.name) {
-        users[selectedIndex].name = updatedUser.name
+};
+
+// GET /users
+app.get('/users', async (req, res) => {
+    try {
+        const result = await conn.query('SELECT * FROM users');
+        res.json(result[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
-    if (updatedUser.age){
-        users[selectedIndex].age = updatedUser.age
-    }
-    users[selectedIndex].name = updatedUser.name || users[selectedIndex].name
-    users[selectedIndex].age = updatedUser.age || user[selectedIndex].age
-    //ส่ง response กลับไปว่า update สำเร็จ
-    res.json({
-        message: 'User updated successfully',
-        data : {
-            user: updatedUser,
-            indexUpdated: selectedIndex
-        }
-    })
-})
-//path = DELETE
-app.delete('/users/:id', (req, res) => {
-    let id = req.params.id;
-    let selectedIndex = users.findIndex(user => user.id == id);
-    if (selectedIndex !== -1) {
-        users.splice(selectedIndex, 1);
+});
+
+// POST /users
+app.post('/users', async (req, res) => {
+    try {
+        let user = req.body;
+        const result = await conn.query('INSERT INTO users SET ?', user);
         res.json({
-            message: 'User deleted successfully',
-            data: {
-                indexDeleted: selectedIndex
-            }
+            message: 'User added successfully',
+            data: result[0]
         });
-    } else {
-        res.status(404).json({
-            message: 'User not found'
+    } catch (error) {
+        res.status(500).json({
+            message: 'Error adding user',
+            error: error.message
         });
     }
 });
-app.listen(port, () => {
-    console.log('Server running on port 8000');
+
+// GET /users/:id
+app.get('/users/:id', async (req, res) => {
+    try {
+        let id = req.params.id;
+        const result = await conn.query('SELECT * FROM users WHERE id = ?', [id]);
+
+        if (result[0].length === 0) {
+            throw { statusCode: 404, message: `User with id ${id} not found` };
+        }
+
+        res.json({
+            message: `User with id ${id} fetched successfully`,
+            data: result[0][0]
+        });
+    } catch (error) {
+        let statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            message: 'Error fetching user',
+            error: error.message
+        });
+    }
+});
+
+// PUT /users/:id
+app.put('/users/:id', async (req, res) => {
+    try {
+        let id = req.params.id;
+        let updatedUser = req.body;
+
+        const result = await conn.query(
+            'UPDATE users SET ? WHERE id = ?',
+            [updatedUser, id]
+        );
+
+        if (result[0].affectedRows === 0) {
+            throw { statusCode: 404, message: `User with id ${id} not found` };
+        }
+
+        res.json({
+            message: `User with id ${id} updated successfully`
+        });
+    } catch (error) {
+        let statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            message: 'Error updating user',
+            error: error.message
+        });
+    }
+});
+
+// DELETE /users/:id
+app.delete('/users/:id', async (req, res) => {
+    try {
+        let id = req.params.id;
+
+        const result = await conn.query(
+            'DELETE FROM users WHERE id = ?',
+            [id]
+        );
+
+        if (result[0].affectedRows === 0) {
+            throw { statusCode: 404, message: `User with id ${id} not found` };
+        }
+
+        res.json({
+            message: `User with id ${id} deleted successfully`
+        });
+    } catch (error) {
+        let statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            message: 'Error deleting user',
+            error: error.message
+        });
+    }
+});
+
+app.listen(port, async () => {
+    await initMySQL();
+    console.log(`Server is running on port ${port}`);
 });
